@@ -1,6 +1,6 @@
 ﻿namespace WinJoy;
 
-partial class Form1
+partial class MainForm
 {
     /// <summary>
     ///  Required designer variable.
@@ -17,6 +17,7 @@ partial class Form1
         {
             components.Dispose();
         }
+
         base.Dispose(disposing);
     }
 
@@ -28,11 +29,33 @@ partial class Form1
     /// </summary>
     private void InitializeComponent()
     {
-        this.components = new System.ComponentModel.Container();
-        this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-        this.ClientSize = new System.Drawing.Size(800, 450);
-        this.Text = "Form1";
+        tbLog = new TextBox();
+        SuspendLayout();
+        // 
+        // tbLog
+        // 
+        tbLog.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+        tbLog.BorderStyle = BorderStyle.FixedSingle;
+        tbLog.Location = new Point(12, 239);
+        tbLog.Multiline = true;
+        tbLog.Name = "tbLog";
+        tbLog.ReadOnly = true;
+        tbLog.Size = new Size(509, 158);
+        tbLog.TabIndex = 0;
+        // 
+        // Form1
+        // 
+        AutoScaleDimensions = new SizeF(7F, 15F);
+        AutoScaleMode = AutoScaleMode.Font;
+        ClientSize = new Size(533, 409);
+        Controls.Add(tbLog);
+        Name = "Form1";
+        Text = "WinJoy";
+        ResumeLayout(false);
+        PerformLayout();
     }
 
     #endregion
+
+    private TextBox tbLog;
 }
