@@ -24,8 +24,8 @@ namespace WinJoy
 
         byte _sendCount = 0;
 
-        ControllerType _controllerType;
-        string _controllerTypeFriendlyName;
+        public ControllerType ControllerType { get; private set; }
+        Action<string, byte[]> _onControllerInputReceived;
 
         internal ControllerDevice(string bluetoothId, string serialNumber)
         {
@@ -34,60 +34,27 @@ namespace WinJoy
             _bluetooth.ConnectionStatusChanged += ControllerDevice_ConnectionStatusChanged;
             if (_bluetooth.ConnectionStatus == BluetoothConnectionStatus.Connected)
             {
+                Hid.Init();
                 CreateHidDevice();
                 switch (_hid.GetDeviceInfo().ProductId)
                 {
                     case 0x2006:
-                        _controllerType = ControllerType.JoyConLeft;
-                        _controllerTypeFriendlyName = "Joy-Con (L)";
+                        ControllerType = ControllerType.JoyConLeft;
                         break;
                     case 0x2007:
-                        _controllerType = ControllerType.JoyConRight;
-                        _controllerTypeFriendlyName = "Joy-Con (R)";
+                        ControllerType = ControllerType.JoyConRight;
                         break;
                     case 0x2009:
-                        _controllerType = ControllerType.ProController;
-                        _controllerTypeFriendlyName = "Pro Controller";
+                        ControllerType = ControllerType.ProController;
                         break;
                 }
-
-                MainForm.AddLog($"{_controllerTypeFriendlyName} ({_serialNumber}) が接続されました");
             }
         }
 
-        private bool CreateHidDevice()
+        internal void SetOnControllerInputReceived(Action<string, byte[]> onDataReceived)
         {
-            int retryCount = 0;
-            while (retryCount < 2)
-            {
-                var enums = Hid.Enumerate();
-                var targetHid = enums.FirstOrDefault(x => x.SerialNumber == _serialNumber);
-                if (targetHid == null)
-                {
-                    Task.Delay(1000).Wait();
-                    retryCount++;
-                    continue;
-                }
-                _hid = targetHid.ConnectToDevice();
-                return true;
-            }
-            return false;
+            _onControllerInputReceived = onDataReceived;
         }
-
-        private void ControllerDevice_ConnectionStatusChanged(BluetoothDevice sender, object args)
-        {
-            if (_bluetooth.ConnectionStatus == BluetoothConnectionStatus.Connected)
-            {
-                MainForm.AddLog($"{_controllerTypeFriendlyName} ({_serialNumber}) が接続されました");
-                CreateHidDevice();
-            }
-            else
-            {
-                MainForm.AddLog($"{_controllerTypeFriendlyName} ({_serialNumber}) が切断されました");
-                _hid.Dispose();
-            }
-        }
-
 
         internal void SendCommand(byte commandId, IEnumerable<byte> rumbleData, byte subCommandId = 0, IEnumerable<byte>? subCommandData = null)
         {
@@ -118,6 +85,37 @@ namespace WinJoy
         internal ReadOnlySpan<byte> ReadBytesFromHid(int readBytes)
         {
             return _hid.Read(readBytes);
+        }
+
+        private bool CreateHidDevice()
+        {
+            int retryCount = 0;
+            while (retryCount < 2)
+            {
+                var enums = Hid.Enumerate();
+                var targetHid = enums.FirstOrDefault(x => x.SerialNumber == _serialNumber);
+                if (targetHid == null)
+                {
+                    Task.Delay(1000).Wait();
+                    retryCount++;
+                    continue;
+                }
+                _hid = targetHid.ConnectToDevice();
+                return true;
+            }
+            return false;
+        }
+
+        private void ControllerDevice_ConnectionStatusChanged(BluetoothDevice sender, object args)
+        {
+            if (_bluetooth.ConnectionStatus == BluetoothConnectionStatus.Connected)
+            {
+                CreateHidDevice();
+            }
+            else
+            {
+                _hid.Dispose();
+            }
         }
 
         public void Dispose()
