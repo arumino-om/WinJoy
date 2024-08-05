@@ -36,6 +36,7 @@ partial class MainForm
         // 
         tbLog.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
         tbLog.BorderStyle = BorderStyle.FixedSingle;
+        tbLog.Font = new Font("Yu Gothic UI", 9F, FontStyle.Regular, GraphicsUnit.Point, 128);
         tbLog.Location = new Point(12, 239);
         tbLog.Multiline = true;
         tbLog.Name = "tbLog";
@@ -43,14 +44,15 @@ partial class MainForm
         tbLog.Size = new Size(509, 158);
         tbLog.TabIndex = 0;
         // 
-        // Form1
+        // MainForm
         // 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
         ClientSize = new Size(533, 409);
         Controls.Add(tbLog);
-        Name = "Form1";
+        Name = "MainForm";
         Text = "WinJoy";
+        FormClosing += MainForm_FormClosing;
         ResumeLayout(false);
         PerformLayout();
     }

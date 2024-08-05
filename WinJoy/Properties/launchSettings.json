@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "WinJoy": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}
