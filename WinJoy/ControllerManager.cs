@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -103,9 +104,32 @@ namespace WinJoy
         {
             if (!_physicalControllers.ContainsKey(bluetoothId)) return;
             if (!_deviceMapping.TryGetValue(bluetoothId, out var virtualControllerIndex)) return;
+            Debug.WriteLine($"[{bluetoothId}] CommandID: {rawData[0]}");
             if (rawData[0] != 0x3F) return;
 
             var virtualController = _virtualControllers[virtualControllerIndex];
+            
+            if (rawData[0] == 0x3F)
+            {
+                ParseSimpleHidModeReport(virtualController, controllerType, rawData);
+            }
+            else if (rawData[0] == 0x30)
+            {
+                ParseFullModeReport(virtualController, controllerType, rawData);
+            }
+            else
+            {
+                Debug.WriteLine($"[{bluetoothId}]: Unknown report ID {rawData[0]}");
+            }
+        }
+
+        private static void ParseFullModeReport(IXbox360Controller virtualController, ControllerType controllerType, byte[] rawData)
+        {
+            // 未実装
+        }
+
+        private static void ParseSimpleHidModeReport(IXbox360Controller virtualController, ControllerType controllerType, byte[] rawData)
+        {
             var btnStatus1 = rawData[1];
             var btnStatus2 = rawData[2];
 
@@ -122,6 +146,7 @@ namespace WinJoy
 
                     // マイナスボタン
                     virtualController.SetButtonState(Xbox360Button.Back, isBitSet(btnStatus2, 0x01));
+                    // Lスティックボタン
                     virtualController.SetButtonState(Xbox360Button.LeftThumb, isBitSet(btnStatus2, 0x04));
                     // キャプチャボタン
                     virtualController.SetButtonState(Xbox360Button.Guide, isBitSet(btnStatus2, 0x20));
@@ -129,6 +154,55 @@ namespace WinJoy
                     virtualController.SetButtonState(Xbox360Button.LeftShoulder, isBitSet(btnStatus2, 0x40));
                     // ZLボタン
                     virtualController.SetSliderValue(Xbox360Slider.LeftTrigger, isBitSet(btnStatus2, 0x80) ? (byte)0xFF : (byte)0x0);
+
+                    // スティックハット
+                    switch (rawData[3])
+                    {
+                        case 0:
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbX, 32767);
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbY, 0);
+                            break;
+
+                        case 1:
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbX, 32767);
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbY, -32767);
+                            break;
+
+                        case 2:
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbX, 0);
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbY, -32767);
+                            break;
+
+                        case 3:
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbX, -32767);
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbY, -32767);
+                            break;
+
+                        case 4:
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbX, -32767);
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbY, 0);
+                            break;
+
+                        case 5:
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbX, -32767);
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbY, 32767);
+                            break;
+
+                        case 6:
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbX, 0);
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbY, 32767);
+                            break;
+
+                        case 7:
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbX, 32767);
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbY, 32767);
+                            break;
+
+                        case 8:
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbX, 0);
+                            virtualController.SetAxisValue(Xbox360Axis.LeftThumbY, 0);
+                            break;
+                    }
                     break;
 
                 case ControllerType.JoyConRight:
@@ -140,6 +214,7 @@ namespace WinJoy
 
                     // プラスボタン
                     virtualController.SetButtonState(Xbox360Button.Start, isBitSet(btnStatus2, 0x02));
+                    // Rスティックボタン
                     virtualController.SetButtonState(Xbox360Button.RightThumb, isBitSet(btnStatus2, 0x08));
                     // ホームボタン
                     virtualController.SetButtonState(Xbox360Button.Guide, isBitSet(btnStatus2, 0x10));
@@ -147,9 +222,57 @@ namespace WinJoy
                     virtualController.SetButtonState(Xbox360Button.RightShoulder, isBitSet(btnStatus2, 0x40));
                     // ZRボタン
                     virtualController.SetSliderValue(Xbox360Slider.RightTrigger, isBitSet(btnStatus2, 0x80) ? (byte)0xFF : (byte)0x0);
+
+                                        // スティックハット
+                    switch (rawData[3])
+                    {
+                        case 0:
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbX, -32767);
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbY, 0);
+                            break;
+
+                        case 1:
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbX, -32767);
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbY, 32767);
+                            break;
+
+                        case 2:
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbX, 0);
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbY, 32767);
+                            break;
+
+                        case 3:
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbX, 32767);
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbY, 32767);
+                            break;
+
+                        case 4:
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbX, 32767);
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbY, 0);
+                            break;
+
+                        case 5:
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbX, 32767);
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbY, -32767);
+                            break;
+
+                        case 6:
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbX, 0);
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbY, -32767);
+                            break;
+
+                        case 7:
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbX, -32767);
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbY, -32767);
+                            break;
+
+                        case 8:
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbX, 0);
+                            virtualController.SetAxisValue(Xbox360Axis.RightThumbY, 0);
+                            break;
+                    }
                     break;
             }
-
         }
     }
 }
