@@ -25,7 +25,7 @@ namespace WinJoy
         byte _sendCount = 0;
 
         public ControllerType ControllerType { get; private set; }
-        Action<string, byte[]> _onControllerInputReceived;
+        Action<string, ControllerType, byte[]> _onControllerInputReceived;
 
         internal ControllerDevice(string bluetoothId, string serialNumber)
         {
@@ -49,9 +49,23 @@ namespace WinJoy
                         break;
                 }
             }
+
+            Task.Run(() =>
+            {
+                while (true)
+                {
+                    var data = _hid.Read(64);
+                    if (data.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    _onControllerInputReceived?.Invoke(_bluetooth.DeviceId, ControllerType, data.ToArray());
+                }
+            });
         }
 
-        internal void SetOnControllerInputReceived(Action<string, byte[]> onDataReceived)
+        internal void SetOnControllerInputReceived(Action<string, ControllerType, byte[]> onDataReceived)
         {
             _onControllerInputReceived = onDataReceived;
         }
