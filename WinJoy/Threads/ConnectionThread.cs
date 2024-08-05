@@ -16,7 +16,7 @@ namespace WinJoy.Threads
 
             deviceWatcher = DeviceInformation.CreateWatcher(
                 aqsFilter,
-                new string[] { "System.Devices.Aep.DeviceAddress", "System.Devices.Aep.Bluetooth.Le.IsConnectable" },
+                ["System.Devices.Aep.DeviceAddress", "System.Devices.Aep.Bluetooth.Le.IsConnectable"],
                 DeviceInformationKind.AssociationEndpoint);
 
             deviceWatcher.Added += DeviceWatcher_Added;
@@ -29,8 +29,7 @@ namespace WinJoy.Threads
 
         private async void DeviceWatcher_Removed(DeviceWatcher sender, DeviceInformationUpdate args)
         {
-            var bluetoothDevice = await BluetoothDevice.FromIdAsync(args.Id);
-            
+            ControllerManager.RemoveController(args.Id);
         }
 
         private async void DeviceWatcher_Added(DeviceWatcher sender, DeviceInformation deviceInfo)
@@ -48,7 +47,7 @@ namespace WinJoy.Threads
                 
                 // ペアリングを行う
                 DeviceInformationCustomPairing p = deviceInfo.Pairing.Custom;
-                p.PairingRequested += (sender, args) =>
+                p.PairingRequested += (_, args) =>
                 {
                     if (args.PairingKind == DevicePairingKinds.ConfirmOnly) args.Accept();
                 };
@@ -75,19 +74,6 @@ namespace WinJoy.Threads
         private void DeviceWatcher_Stopped(DeviceWatcher sender, object args)
         {
             // ウォッチャーが停止したときの処理
-        }
-
-        private static void PairingRequestedHandler(DeviceInformationCustomPairing sender, DevicePairingRequestedEventArgs args)
-        {
-            switch (args.PairingKind)
-            {
-                case DevicePairingKinds.ConfirmOnly:
-                    // Windows itself will pop the confirmation dialog as part of "consent" if this is running on Desktop or Mobile
-                    // If this is an App for 'Windows IoT Core' or a Desktop and Console application
-                    // where there is no Windows Consent UX, you may want to provide your own confirmation.
-                    args.Accept();
-                    break;
-            }
         }
     }
 }
