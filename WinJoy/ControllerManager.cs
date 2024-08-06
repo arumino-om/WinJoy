@@ -46,6 +46,8 @@ namespace WinJoy
                     {
                         var virtualController = _vigemClient.CreateXbox360Controller();
                         _virtualControllers.Add(virtualController);
+                        virtualController.Connect();
+                        Debug.WriteLine($"[{device.ControllerType}] Virtual controller mapped: {_virtualControllers.Count - 1}");
                         _deviceMapping.Add(bluetoothId, _virtualControllers.Count - 1);
                         break;
                     }
@@ -67,7 +69,8 @@ namespace WinJoy
                             virtualControllerIndex = _virtualControllers.Count - 1;
                             vCon.Connect();
                         }
-                    
+
+                        Debug.WriteLine($"[{device.ControllerType}] Virtual controller mapped: {virtualControllerIndex}");
                         _deviceMapping.Add(bluetoothId, virtualControllerIndex);
                         break;
                     }
@@ -90,6 +93,7 @@ namespace WinJoy
                             vCon.Connect();
                         }
                     
+                        Debug.WriteLine($"[{device.ControllerType}] Virtual controller mapped: {virtualControllerIndex}");
                         _deviceMapping.Add(bluetoothId, virtualControllerIndex);
                         break;
                     }
@@ -112,7 +116,6 @@ namespace WinJoy
         {
             if (!_physicalControllers.ContainsKey(bluetoothId)) return;
             if (!_deviceMapping.TryGetValue(bluetoothId, out var virtualControllerIndex)) return;
-            //Debug.WriteLine($"[{bluetoothId}] CommandID: {rawData[0]}");
 
             var virtualController = _virtualControllers[virtualControllerIndex];
             
@@ -227,6 +230,40 @@ namespace WinJoy
                     short leftStickVertical = (short)((leftStickData[1] >> 4) | (leftStickData[2] << 4));
                     virtualController.SetAxisValue(Xbox360Axis.LeftThumbX, leftStickHorizontal);
                     virtualController.SetAxisValue(Xbox360Axis.LeftThumbY, leftStickVertical);
+                    break;
+
+                case ControllerType.ProController:
+                    // ABXYボタン
+                    virtualController.SetButtonState(Xbox360Button.Y, ByteHelper.IsBitSet(btnStatus1[0], 0x01));
+                    virtualController.SetButtonState(Xbox360Button.X, ByteHelper.IsBitSet(btnStatus1[0], 0x02));
+                    virtualController.SetButtonState(Xbox360Button.B, ByteHelper.IsBitSet(btnStatus1[0], 0x04));
+                    virtualController.SetButtonState(Xbox360Button.A, ByteHelper.IsBitSet(btnStatus1[0], 0x08));
+
+                    // R, ZRボタン
+                    virtualController.SetButtonState(Xbox360Button.RightShoulder, ByteHelper.IsBitSet(btnStatus1[0], 0x40));
+                    virtualController.SetSliderValue(Xbox360Slider.RightTrigger, ByteHelper.IsBitSet(btnStatus1[0], 0x80) ? (byte)0xFF : (byte)0x0);
+
+                    // スティック
+                    short rightStickHorizontal2 = (short)(rightStickData[0] | ((rightStickData[1] & 0xF) << 8));
+                    short rightStickVertical2 = (short)((rightStickData[1] >> 4) | (rightStickData[2] << 4));
+                    virtualController.SetAxisValue(Xbox360Axis.RightThumbX, rightStickHorizontal2);
+                    virtualController.SetAxisValue(Xbox360Axis.RightThumbY, rightStickVertical2);
+
+                    // 十字キー
+                    virtualController.SetButtonState(Xbox360Button.Down, ByteHelper.IsBitSet(btnStatus1[2], 0x01));
+                    virtualController.SetButtonState(Xbox360Button.Up, ByteHelper.IsBitSet(btnStatus1[2], 0x02));
+                    virtualController.SetButtonState(Xbox360Button.Right, ByteHelper.IsBitSet(btnStatus1[2], 0x04));
+                    virtualController.SetButtonState(Xbox360Button.Left, ByteHelper.IsBitSet(btnStatus1[2], 0x08));
+
+                    // L, ZLボタン
+                    virtualController.SetButtonState(Xbox360Button.LeftShoulder, ByteHelper.IsBitSet(btnStatus1[2], 0x40));
+                    virtualController.SetSliderValue(Xbox360Slider.LeftTrigger, ByteHelper.IsBitSet(btnStatus1[2], 0x80) ? (byte)0xFF : (byte)0x0);
+
+                    // スティック
+                    short leftStickHorizontal2 = (short)(leftStickData[0] | ((leftStickData[1] & 0xF) << 8));
+                    short leftStickVertical2 = (short)((leftStickData[1] >> 4) | (leftStickData[2] << 4));
+                    virtualController.SetAxisValue(Xbox360Axis.LeftThumbX, leftStickHorizontal2);
+                    virtualController.SetAxisValue(Xbox360Axis.LeftThumbY, leftStickVertical2);
                     break;
             }
         }
