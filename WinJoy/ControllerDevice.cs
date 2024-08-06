@@ -13,18 +13,22 @@ using HidApi;
 using System.Runtime.InteropServices.WindowsRuntime;
 using WinJoy.Data;
 using WinJoy.Types;
+using WinJoy.Helpers;
 
 namespace WinJoy
 {
     internal class ControllerDevice : IDisposable
     {
+        internal ControllerType ControllerType { get; private set; }
+        internal ushort[] LeftAnalogStickCalibrationData { get; private set; }
+        internal ushort[] RightAnalogStickCalibrationData { get; private set; }
+
         string _serialNumber;
         BluetoothDevice _bluetooth;
         Device _hid;
-
+        
         byte _sendCount = 0;
-
-        public ControllerType ControllerType { get; private set; }
+        
         Action<string, ControllerType, byte[]> _onControllerInputReceived;
 
         internal ControllerDevice(string bluetoothId, string serialNumber)
@@ -34,7 +38,6 @@ namespace WinJoy
             _bluetooth.ConnectionStatusChanged += ControllerDevice_ConnectionStatusChanged;
             if (_bluetooth.ConnectionStatus == BluetoothConnectionStatus.Connected)
             {
-                Hid.Init();
                 CreateHidDevice();
                 switch (_hid.GetDeviceInfo().ProductId)
                 {
@@ -48,21 +51,44 @@ namespace WinJoy
                         ControllerType = ControllerType.ProController;
                         break;
                 }
-            }
+                Debug.WriteLine($"[{ControllerType}]: Connected to HID device");
 
-            Task.Run(() =>
-            {
-                while (true)
+                // 一旦 Simple HID mode に変更
+                SendCommand(0x01, [0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40], 0x03, [0x3F]);
+
+                // 各スティックのファクトリーキャリブレーションデータを取得
+                SendCommand(0x01, [0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40], 0x10, [0x3D, 0x60, 0x00, 0x00, 0x09]);
+                var data1 = ReadBytesFromHid(64, 0x10);
+                LeftAnalogStickCalibrationData = ByteHelper.Decode3ByteGroup(data1[20..29].ToArray());
+                SendCommand(0x01, [0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40], 0x10, [0x46, 0x60, 0x00, 0x00, 0x09]);
+                var data2 = ReadBytesFromHid(64, 0x10);
+                RightAnalogStickCalibrationData = ByteHelper.Decode3ByteGroup(data2[20..29].ToArray());
+
+                // Standard full mode に変更する
+                SendCommand(0x01, [0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40], 0x03, [0x30]);
+
+
+                Task.Run(() =>
                 {
-                    var data = _hid.Read(64);
-                    if (data.Length == 0)
+                    while (true)
                     {
-                        continue;
-                    }
+                        try
+                        {
+                            var data = _hid.Read(64);
+                            if (data.Length == 0)
+                            {
+                                continue;
+                            }
 
-                    _onControllerInputReceived?.Invoke(_bluetooth.DeviceId, ControllerType, data.ToArray());
-                }
-            });
+                            _onControllerInputReceived(_bluetooth.DeviceId, ControllerType, data.ToArray());
+                        }
+                        catch (HidException e)
+                        {
+                            Debug.WriteLine($"[{_serialNumber}]: OMG! HidException occured: {e.Message}");
+                        }
+                    }
+                });
+            }
         }
 
         internal void SetOnControllerInputReceived(Action<string, ControllerType, byte[]> onDataReceived)
@@ -77,13 +103,7 @@ namespace WinJoy
                 throw new ArgumentException("rumbleData must be 8 bytes length");
             }
 
-            _sendCount++;
-            if (_sendCount > 0x0F)
-            {
-                _sendCount = 0;
-            }
-
-            List<byte> payload = [commandId, _sendCount, .. rumbleData];
+            List<byte> payload = [commandId, (byte)(++_sendCount & 0xF), .. rumbleData];
             if (commandId != 0x10)
             {
                 payload.Add(subCommandId);
@@ -96,16 +116,28 @@ namespace WinJoy
             _hid.Write(payload.ToArray());
         }
 
-        internal ReadOnlySpan<byte> ReadBytesFromHid(int readBytes)
+        internal ReadOnlySpan<byte> ReadBytesFromHid(int readBytes, byte expectSubCommand = 0)
         {
-            return _hid.Read(readBytes);
+            var retryCount = 0;
+            ReadOnlySpan<byte> data = null;
+            while (retryCount < 4)
+            {
+                data = _hid.Read(readBytes);
+                if (expectSubCommand == 0) return data;
+
+                if (data[14] == expectSubCommand) return data;
+                retryCount++;
+            }
+
+            return data;
         }
 
         private bool CreateHidDevice()
         {
             int retryCount = 0;
-            while (retryCount < 2)
+            while (retryCount < 10)
             {
+                Hid.Init();
                 var enums = Hid.Enumerate();
                 var targetHid = enums.FirstOrDefault(x => x.SerialNumber == _serialNumber);
                 if (targetHid == null)
@@ -122,14 +154,7 @@ namespace WinJoy
 
         private void ControllerDevice_ConnectionStatusChanged(BluetoothDevice sender, object args)
         {
-            if (_bluetooth.ConnectionStatus == BluetoothConnectionStatus.Connected)
-            {
-                CreateHidDevice();
-            }
-            else
-            {
-                _hid.Dispose();
-            }
+            Debug.WriteLine($"[{_serialNumber}]: Connection status changed: {sender.ConnectionStatus}");
         }
 
         public void Dispose()
