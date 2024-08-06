@@ -116,17 +116,19 @@ namespace WinJoy
 
             var virtualController = _virtualControllers[virtualControllerIndex];
             
-            if (rawData[0] == 0x3F)
+            switch (rawData[0])
             {
-                ParseSimpleHidModeReport(virtualController, controllerType, rawData);
-            }
-            else if (rawData[0] == 0x30)
-            {
-                ParseFullModeReport(bluetoothId, virtualController, controllerType, rawData);
-            }
-            else
-            {
-                Debug.WriteLine($"[{bluetoothId}]: Unknown report ID {rawData[0]}");
+                case 0x3F:
+                    ParseSimpleHidModeReport(virtualController, controllerType, rawData);
+                    break;
+
+                case 0x30:
+                    ParseFullModeReport(bluetoothId, virtualController, controllerType, rawData);
+                    break;
+
+                default:
+                    Debug.WriteLine($"[{bluetoothId}]: Unknown report ID {rawData[0]}");
+                    break;
             }
         }
 
