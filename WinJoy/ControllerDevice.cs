@@ -53,20 +53,12 @@ namespace WinJoy
                 }
                 Debug.WriteLine($"[{ControllerType}]: Connected to HID device");
 
-                // 一旦 Simple HID mode に変更
-                SendCommand(0x01, [0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40], 0x03, [0x3F]);
-
                 // 各スティックのファクトリーキャリブレーションデータを取得
                 SendCommand(0x01, [0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40], 0x10, [0x3D, 0x60, 0x00, 0x00, 0x09]);
-                var data1 = ReadBytesFromHid(64, 0x10);
-                LeftAnalogStickCalibrationData = ByteHelper.Decode3ByteGroup(data1[20..29].ToArray());
                 SendCommand(0x01, [0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40], 0x10, [0x46, 0x60, 0x00, 0x00, 0x09]);
-                var data2 = ReadBytesFromHid(64, 0x10);
-                RightAnalogStickCalibrationData = ByteHelper.Decode3ByteGroup(data2[20..29].ToArray());
 
-                // Standard full mode に変更する
+                //// Standard full mode に変更する
                 SendCommand(0x01, [0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40], 0x03, [0x30]);
-
 
                 Task.Run(() =>
                 {
@@ -74,10 +66,24 @@ namespace WinJoy
                     {
                         try
                         {
-                            var data = _hid.Read(64);
+                            var data = ReadBytesFromHid(64);
                             if (data.Length == 0)
                             {
                                 continue;
+                            }
+
+                            if (data[14] == 0x10)
+                            {
+                                if (data[15] == 0x3D && data[16] == 0x60 && LeftAnalogStickCalibrationData == null)
+                                {
+                                    LeftAnalogStickCalibrationData = ByteHelper.Decode3ByteGroup(data[20..29].ToArray());
+                                    continue;
+                                }
+                                if (data[15] == 0x46 && data[16] == 0x60 && RightAnalogStickCalibrationData == null)
+                                {
+                                    RightAnalogStickCalibrationData = ByteHelper.Decode3ByteGroup(data[20..29].ToArray());
+                                    continue;
+                                }
                             }
 
                             _onControllerInputReceived(_bluetooth.DeviceId, ControllerType, data.ToArray());
@@ -137,7 +143,6 @@ namespace WinJoy
             int retryCount = 0;
             while (retryCount < 10)
             {
-                Hid.Init();
                 var enums = Hid.Enumerate();
                 var targetHid = enums.FirstOrDefault(x => x.SerialNumber == _serialNumber);
                 if (targetHid == null)
